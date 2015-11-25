@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Painting</title>
+    <style>
+        svg line{
+            stroke: grey;
+            stroke-width: 2;
+        }
+        svg circle{
+            stroke: steelblue;
+            fill: #21B2B4;
+            stroke-width: 2;
+        }
+    </style>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+</head>
+<body id = 'body'>
+<script type="text/javascript">
+    var body = document.getElementById('body');
+    var svg = d3.select('body').append('svg').attr('id','svg');
+    var svgD = document.getElementById('svg');
+
+    var width = window.screen.width;
+    var height = window.screen.height;
+    var lastPoint = {x:0,y:0};
+
+    svg.attr('height', height)
+            .attr('width', width);
+
+    body.onclick = function(event){
+        var mx = event.pageX - svgD.offsetLeft;
+        var my = event.pageY - svgD.offsetTop;
+
+        svg.append('line')
+                .attr('x1',lastPoint.x)
+                .attr('y1',lastPoint.y)
+                .attr('x2', mx)
+                .attr('y2', my);
+
+        svg.append('circle')
+                .attr('cx', mx)
+                .attr('cy', my)
+                .attr('r',5);
+
+        lastPoint.x = mx;
+        lastPoint.y = my;
+    };
+</script>
+</body>
+</html>
