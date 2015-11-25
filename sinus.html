@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Sinus</title>
+    <style>
+        svg line{
+            stroke: grey;
+            stroke-width: 2;
+        }
+        svg circle{
+            stroke: steelblue;
+            fill: #21B2B4;
+            stroke-width: 2;
+        }
+    </style>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+</head>
+<body id = 'body'>
+<script type="text/javascript">
+    var body = document.getElementById('body');
+    var svg = d3.select('body').append('svg').attr('id','svg');
+    var svgD = document.getElementById('svg');
+
+    var width = window.screen.width;
+    var height = window.screen.height;
+    var lastY = 0;
+    var x = 0;
+    var count = 10000;
+    var coef = width / count;
+    var startTime = new Date();
+
+    svg.attr('height', height)
+            .attr('width', width);
+
+    for (var i = 0; i < count;i += 0.1){
+        svg.append('line')
+                .attr('x1', x)
+                .attr('y1', lastY + 200)
+                .attr('x2', x+1)
+                .attr('y2', Math.sin(i) * 100 + 200);
+        x += coef;
+    }
+
+    var endTime = new Date();
+
+    alert("Количество синусов: " + count + " штук\n" + startTime + "\n" + endTime + "\nЗатраченно времени: " + (-startTime.getMilliseconds() - startTime.getSeconds() * 1000 - startTime.getMinutes() * 60000
+        + endTime.getMilliseconds() + endTime.getSeconds() * 1000 + endTime.getMinutes() * 60000) + " миллисекунд");
+</script>
+</body>
+</html>
