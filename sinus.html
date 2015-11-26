@@ -17,35 +17,80 @@
     <script src="http://d3js.org/d3.v3.min.js"></script>
 </head>
 <body id = 'body'>
+<input id = "count" value = "1000"><br><br>
+<input type = "button" id = "reload" value = "Перерисовать" onclick="repaint()">
+<input type = "button" id = "remove" value = "Очистить" onclick="remove()"><br><br>
+<input type = "checkbox" id = "alerting">Включить уведомления
 <script type="text/javascript">
     var body = document.getElementById('body');
-    var svg = d3.select('body').append('svg').attr('id','svg');
     var svgD = document.getElementById('svg');
+    var countBox = document.getElementById('count');
 
-    var width = window.screen.width;
-    var height = window.screen.height;
-    var lastY = 0;
-    var x = 0;
-    var count = 10000;
-    var coef = width / count;
-    var startTime = new Date();
+    repaint();
 
-    svg.attr('height', height)
-            .attr('width', width);
-
-    for (var i = 0; i < count;i += 0.1){
-        svg.append('line')
-                .attr('x1', x)
-                .attr('y1', lastY + 200)
-                .attr('x2', x+1)
-                .attr('y2', Math.sin(i) * 100 + 200);
-        x += coef;
+    function remove(){
+        d3.select('body').select('svg').remove();
     }
 
-    var endTime = new Date();
+    function repaint(){
+        var width = window.screen.width;
+        var height = window.screen.height;
+        var lastY = 0;
+        var x = 0;
+        var scroolLevel = 2;
+        var count = countBox.value;
+        var coef = (width - 50) / count;
+        var startTime = new Date();
+        var step = 0.1;
+        var array = new Array(count * (1 / step));
+        var displaying = [{}];
+        var svg = d3.select('body').select('svg');
+        svg.remove();
+        svg = d3.select('body').append('svg').attr('id','svg');
+        svg.attr('height', height)
+            .attr('width', width);
 
-    alert("Количество синусов: " + count + " штук\n" + startTime + "\n" + endTime + "\nЗатраченно времени: " + (-startTime.getMilliseconds() - startTime.getSeconds() * 1000 - startTime.getMinutes() * 60000
-        + endTime.getMilliseconds() + endTime.getSeconds() * 1000 + endTime.getMinutes() * 60000) + " миллисекунд");
+        for (var i = 0; i < array.length; i++){
+            array[i] = Math.sin(i/10);
+        }
+
+        /*for (var i = 0; i < array.length; i++){
+            svg.append('line')
+                    .attr('x1', x)
+                    .attr('y1', lastY + 200)
+                    .attr('x2', x+1)
+                    .attr('y2', array[i] * 100 + 200);
+            x += coef;
+        }*/  //drawing line by line
+
+        for (var i = 0; i < array.length; i += scroolLevel){
+            //if (array[i] != null) {
+                var point = {y:array[i] * 100 + 200, x:i/scroolLevel};
+                displaying[displaying.length] = point;
+            //}
+        }
+        displaying[displaying.length] = {x:displaying.length, y:200};
+
+        var endTime = new Date();
+        if (document.getElementById('alerting').checked == true) alert("Количество синусов: " + count + " штук\n" + startTime + "\n" + endTime + "\nЗатраченно времени: " + (-startTime.getMilliseconds() - startTime.getSeconds() * 1000 - startTime.getMinutes() * 60000
+            + endTime.getMilliseconds() + endTime.getSeconds() * 1000 + endTime.getMinutes() * 60000) + " миллисекунд");
+
+        drawPoly(displaying, svg);
+    }
+
+    function drawPoly(points, svg){
+        var pointsString = "";
+
+        for (var i = 0; i < points.length; i++){
+            if (typeof points[i].x != "undefined") pointsString += points[i].x + "," + points[i].y + " ";
+        }
+
+        svg.append("polygon")
+                .style("fill", "blue")
+                .style("stroke", "steelblue")
+                .style("stroke-width", "2")
+                .attr("points", pointsString);
+    }
 </script>
 </body>
 </html>
