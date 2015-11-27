@@ -40,6 +40,10 @@
 
     repaint();
 
+    window.onresize = function() {
+        repaint();
+    };
+
     function remove(){
         d3.select('body').select('svg').remove();
     }
@@ -162,6 +166,7 @@
                 .style("stroke-width", "2")
                 .attr("points", pointsString);
     }
+
 </script>
 </body>
 </html>
