@@ -13,6 +13,18 @@
             fill: #21B2B4;
             stroke-width: 2;
         }
+        .axis path, .axis line {
+            fill: none;
+            stroke: #333;
+        }
+        .axis .grid-line {
+            stroke: #000;
+            shape-rendering: crispedges;
+            stroke-opacity: 0.2;
+        }
+        .axis text {
+            font: 10px Verdana;
+        }
     </style>
     <script src="http://d3js.org/d3.v3.min.js"></script>
 </head>
@@ -33,24 +45,28 @@
     }
 
     function repaint(){
-        var width = window.screen.width;
-        var height = window.screen.height;
+        var width = window.innerWidth - 50;
+        var height = window.innerHeight;
+        var margin = 30;
         var lastY = 0;
         var x = 0;
-        var scroolLevel = 2;
+        var scroolLevel = 1;
         var count = countBox.value;
-        var coef = (width - 50) / count;
+        var coef = (width - margin * 2) / count;
         var startTime = new Date();
         var step = 0.1;
-        var array = new Array(count * (1 / step));
+        var array = new Array(count);
         var displaying = [{}];
+
         var svg = d3.select('body').select('svg');
         svg.remove();
-        svg = d3.select('body').append('svg').attr('id','svg');
-        svg.attr('height', height)
-            .attr('width', width);
+        svg = d3.select('body').append('svg')
+                .attr('id','svg')
+                .attr('height', height)
+                .attr('width', width)
+                .attr('class', 'axis');
 
-        for (var i = 0; i < array.length; i++){
+        for (var i = 0; i < count; i++){
             array[i] = Math.sin(i/10);
         }
 
@@ -64,18 +80,73 @@
         }*/  //drawing line by line
 
         for (var i = 0; i < array.length; i += scroolLevel){
-            //if (array[i] != null) {
-                var point = {y:array[i] * 100 + 200, x:i/scroolLevel};
-                displaying[displaying.length] = point;
-            //}
+            var point = {y:array[i] * 100 + 200, x:x + margin};
+            displaying[displaying.length] = point;
+            x += coef;
         }
-        displaying[displaying.length] = {x:displaying.length, y:200};
+        displaying[displaying.length] = {x:x + margin - coef, y:200};
+
+        drawPoly(displaying, svg);
+        drawAxis(svg, width, 400, margin, count);
 
         var endTime = new Date();
         if (document.getElementById('alerting').checked == true) alert("Количество синусов: " + count + " штук\n" + startTime + "\n" + endTime + "\nЗатраченно времени: " + (-startTime.getMilliseconds() - startTime.getSeconds() * 1000 - startTime.getMinutes() * 60000
-            + endTime.getMilliseconds() + endTime.getSeconds() * 1000 + endTime.getMinutes() * 60000) + " миллисекунд");
+        + endTime.getMilliseconds() + endTime.getSeconds() * 1000 + endTime.getMinutes() * 60000) + " миллисекунд");
+    }
 
-        drawPoly(displaying, svg);
+    function drawAxis(svg, width, height, margin, maxX){
+        // длина оси X= ширина контейнера svg - отступ слева и справа
+        var xAxisLength = width - 2 * margin;
+
+        // длина оси Y = высота контейнера svg - отступ сверху и снизу
+        var yAxisLength = height- 2 * margin;
+
+        // функция интерполяции значений на ось Х 
+        var scaleX = d3.scale.linear()
+                .domain([0, maxX])
+                .range([0, xAxisLength]);
+        var scaleY = d3.scale.linear()
+                .domain([-1, 1])
+                .range([0, yAxisLength]);
+
+        // создаем ось X  
+        var xAxis = d3.svg.axis()
+                .scale(scaleX)
+                .orient("bottom");
+        var yAxis = d3.svg.axis()
+                .scale(scaleY)
+                .orient("left");
+
+        // отрисовка оси              
+        svg.append("g")
+                .attr("class", "x-axis")
+                .attr("transform",  // сдвиг оси вниз и вправо
+                "translate(" + margin + "," + (height - margin) + ")")
+                .call(xAxis);
+
+        svg.append("g")
+                .attr("class", "y-axis")
+                .attr("transform", // сдвиг оси вниз и вправо на margin
+                "translate(" + margin + "," + margin + ")")
+                .call(yAxis);
+
+        // создаем набор вертикальных линий для сетки  
+        d3.selectAll("g.x-axis g.tick")
+                .append("line") // добавляем линию
+                .classed("grid-line", true) // добавляем класс
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", 0)
+                .attr("y2", - (yAxisLength));
+
+        // рисуем горизонтальные линии
+        d3.selectAll("g.y-axis g.tick")
+                .append("line")
+                .classed("grid-line", true)
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", xAxisLength)
+                .attr("y2", 0);
     }
 
     function drawPoly(points, svg){
