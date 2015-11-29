@@ -29,7 +29,7 @@
     <script src="http://d3js.org/d3.v3.min.js"></script>
 </head>
 <body id = 'body'>
-<input id = "count" value = "1000"><br><br>
+<input id = "count" value = "1000"><br><br><input type = "range" id = "zoom" min = "1" max = "10" step = "1" value = "1" onchange="updateVal()"> Уровень зума: <t id = "zoomlevel"></t><br><br>
 <input type = "button" id = "reload" value = "Перерисовать" onclick="repaint()">
 <input type = "button" id = "remove" value = "Очистить" onclick="remove()"><br><br>
 <input type = "checkbox" id = "alerting">Включить уведомления
@@ -37,28 +37,45 @@
     var body = document.getElementById('body');
     var svgD = document.getElementById('svg');
     var countBox = document.getElementById('count');
+    var seeposition = 0;
+    var ctrl = false;
+    var shift = false;
+    var centerCoef = 200;
 
     repaint();
+    updateVal();
 
     window.onresize = function() {
         repaint();
     };
+
+    function updateVal(){
+        document.getElementById('zoomlevel').innerText = document.getElementById('zoom').value;
+        repaint();
+    }
+
+    function mousewheel(e){
+        var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)))
+        console.log('delta');
+    }
 
     function remove(){
         d3.select('body').select('svg').remove();
     }
 
     function repaint(){
+        var margin = 30;
         var width = window.innerWidth - 50;
         var height = window.innerHeight;
-        var margin = 30;
+        var realHeight = 370;
         var lastY = 0;
         var x = 0;
-        var scroolLevel = 1;
+        var scroolLevel = parseInt(document.getElementById('zoom').value);
+        console.log("Scroll level: " + scroolLevel);
         var count = countBox.value;
-        var coef = (width - margin * 2) / count;
         var startTime = new Date();
         var step = 0.1;
+        var coef = (width - margin * 2) / count * scroolLevel;
         var array = new Array(count);
         var displaying = [{}];
 
@@ -70,9 +87,11 @@
                 .attr('width', width)
                 .attr('class', 'axis');
 
+        svgD = document.getElementById('svg');
         for (var i = 0; i < count; i++){
             array[i] = Math.sin(i/10);
         }
+        var seezone = {begin: seeposition * scroolLevel, end: array.length};
 
         /*for (var i = 0; i < array.length; i++){
             svg.append('line')
@@ -82,15 +101,35 @@
                     .attr('y2', array[i] * 100 + 200);
             x += coef;
         }*/  //drawing line by line
-
-        for (var i = 0; i < array.length; i += scroolLevel){
-            var point = {y:array[i] * 100 + 200, x:x + margin};
-            displaying[displaying.length] = point;
-            x += coef;
+        //x = coef * seezone.begin / scroolLevel;
+        //console.log(seezone);
+        if (centerCoef >= margin && centerCoef <= realHeight) displaying[displaying.length] = {x:margin, y:centerCoef};
+        else if (centerCoef >= realHeight) displaying[displaying.length] = {x:margin, y:realHeight};
+        else displaying[displaying.length] = {x:margin, y:margin};
+        for (var i = seezone.begin; i < seezone.end; i += scroolLevel) {
+            var value = (array[i] * 100) * scroolLevel + centerCoef;
+            var point = 0;
+            if (value <= realHeight && value >= margin) {
+                point = {y: value, x: x * scroolLevel + margin};
+            } else if(value <= margin){
+                point = {y: margin, x: x * scroolLevel + margin};
+            } else {
+                point = {y: realHeight, x: x * scroolLevel + margin};
+            }
+            if (x < width - 2 * margin) {
+                displaying[displaying.length] = point;
+                if ((typeof point.x == "undefined" || typeof point.y == "undefined") || (point.x == null && point.y == null)) console.log('i: ' + i + 'array[i]:' + array[i] + 'scroll level: ' + scroolLevel)
+                x += coef;
+            }else console.log('Not in range of axis!');
         }
-        displaying[displaying.length] = {x:x + margin - coef, y:200};
+        /*for (var i = 1; i < displaying.length; i ++) {
+            if (Math.abs(displaying[i-1].y - displaying[i].y) > 100) console.log("--- unusual value at x " + displaying[i].x + '\n1: ' + displaying[i-1].y + '\n2: ' + displaying[i].y);
+        }*/
+        if (centerCoef >= margin && centerCoef <= realHeight) displaying[displaying.length] = {x:x * scroolLevel + margin - coef, y:centerCoef};
+        else if (centerCoef >= realHeight) displaying[displaying.length] = {x:x * scroolLevel + margin - coef, y:realHeight};
+        else displaying[displaying.length] = {x:x * scroolLevel + margin - coef, y:margin};
 
-        drawPoly(displaying, svg);
+        drawPoly(displaying, svg, scroolLevel);
         drawAxis(svg, width, 400, margin, count);
 
         var endTime = new Date();
@@ -156,8 +195,9 @@
     function drawPoly(points, svg){
         var pointsString = "";
 
-        for (var i = 0; i < points.length; i++){
-            if (typeof points[i].x != "undefined") pointsString += points[i].x + "," + points[i].y + " ";
+        for (var i = 1; i < points.length; i++){
+            if ((typeof points[i].x != "undefined" && typeof points[i].y != "undefined") && (points[i].x != null && points[i].y != null)) pointsString += points[i].x + "," + points[i].y + " ";
+            else console.log('Invalid value!!! \ny: ' + points[i].y + '\nx: ' + points[i].x + '\ni: ' + i);
         }
 
         svg.append("polygon")
@@ -167,6 +207,73 @@
                 .attr("points", pointsString);
     }
 
+    // Функция для добавления обработчика событий
+    function addHandler(object, event, handler, useCapture) {
+        if (object.addEventListener) {
+            object.addEventListener(event, handler, useCapture ? useCapture : false);
+        } else if (object.attachEvent) {
+            object.attachEvent('on' + event, handler);
+        } else alert("Add handler is not supported");
+    }
+    // Добавляем обработчики
+    /* Gecko */
+    addHandler(window, 'DOMMouseScroll', wheel);
+    /* Opera */
+    addHandler(window, 'mousewheel', wheel);
+    /* IE */
+    addHandler(document, 'mousewheel', wheel);
+
+    addHandler(window, 'keydown', ctrlF);
+    addHandler(window, 'keyup', ctrlF);
+    // Обработчик события
+    function wheel(event) {
+        var delta; // Направление скролла
+        // -1 - скролл вниз
+        // 1  - скролл вверх
+        event = event || window.event;
+        // Opera и IE работают со свойством wheelDelta
+        if (event.wheelDelta) {
+            delta = event.wheelDelta / 120;
+            // В Опере значение wheelDelta такое же, но с противоположным знаком
+            if (window.opera) delta = -delta;
+            // В реализации Gecko получим свойство detail
+        } else if (event.detail) {
+            delta = -event.detail / 3;
+        }
+        // Запрещаем обработку события браузером по умолчанию
+        if (event.preventDefault)  event.preventDefault();
+        event.returnValue = false;
+        if (!ctrl && !shift) {
+            seeposition += delta * 3;
+            if (seeposition < 0) seeposition = 0;
+            console.log(seeposition);
+        }
+        else if (ctrl){
+            var zoomrange = document.getElementById('zoom');
+            console.log('zoom value: ' + zoomrange.value);
+            var value = parseInt(zoomrange.value) + delta;
+            if (value < 0) value = 0;
+            zoomrange.value = value;
+            console.log('value: ' + value);
+            console.log('zoom value: ' + zoomrange.value);
+        }
+        else if (shift){
+            centerCoef += delta * 3;
+        }
+        repaint();
+        return delta;
+    }
+
+    function ctrlF(event){
+        if (event.keyCode == "17") {
+            if (event.type == "keydown") ctrl = true;
+            else if (event.type == "keyup") ctrl = false;
+        }
+        if (event.keyCode == "16") {
+            if (event.type == "keydown") shift= true;
+            else if (event.type == "keyup") shift = false;
+        }
+    }
 </script>
 </body>
 </html>
