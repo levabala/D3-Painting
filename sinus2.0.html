@@ -37,18 +37,18 @@
 <input type = "range" id = "quality" min = "1" max = "20" step = "1" value = "10" onchange="main()"> Качество синусов: <t id = "qualitylevel"></t><br><br>
 <script type="text/javascript">
     //Painting
-    function paint(svg, width, height, points, margin, zoom){
-        console.group('---- Painting started ----');
+    function paint(svg, width, height, points, margin, zoom, consol){
+        if (consol) console.group('---- Painting started ----');
 
-        drawAxis(svg,width,height,margin,points[points.length-1].val,zoom);
+        drawAxis(svg,width,height,margin,points[points.length-1].val,zoom, consol);
         drawPoly(points,svg);
 
-        console.info("Painting finished...");
-        console.groupEnd();
+        if (consol) console.info("Painting finished...");
+        if (consol) console.groupEnd();
     }
 
-    function drawAxis(svg, width, height, margin, maxX, zoom){
-        console.warn('maxX: ' + maxX);
+    function drawAxis(svg, width, height, margin, maxX, zoom, consol){
+        if (consol) console.warn('maxX: ' + maxX);
         // длина оси X= ширина контейнера svg - отступ слева и справа
         var xAxisLength = width - 2 * margin;
 
@@ -60,7 +60,7 @@
                 .domain([0, maxX / zoom])
                 .range([0, xAxisLength]);
         var scaleY = d3.scale.linear()
-                .domain([-1 * zoom, 1 * zoom])
+                .domain([1 / zoom, -1 / zoom])
                 .range([0, yAxisLength]);
 
         // создаем ось X  
@@ -118,58 +118,75 @@
 </script>
 <script type="text/javascript">
     //Calculation
-    function calc(svg, width, height, margin, count, step, zoom){
-        console.group('---- Calculation started ----');
+
+    var coeffX = 0;
+    var coeffY = 0;
+
+    function calc(svg, width, height, margin, count, step, zoom, keys, consol){
+        if (consol) console.group('---- Calculation started ----');
 
         var points = [];
+        changeCoeffs();
         fillArray();
         scalePoints();
 
-        console.log('step: ' + step);
-        console.log('count: ' + count);
-        console.info("Calculation finished...");
-        console.groupEnd();
+        if (consol) {
+            console.log('step: ' + step);
+            console.log('count: ' + count);
+            console.info("Calculation finished...");
+            console.groupEnd();
+        }
 
-        paint(svg, width, height, points, margin, zoom);
+        paint(svg, width, height, points, margin, zoom, consol);
 
         function scalePoints(){
             var scaleCoeffX = count / (width - margin * 2);
             var scaleCoeffY = 1 / (height - margin * 2) * 2;
-            console.log('scaleCoeffX: ' + scaleCoeffX);
-            console.log('scaleCoeffY: ' + scaleCoeffY);
-            console.log('width: ' + width);
-            console.log('margin: ' + margin);
+            if (consol) {
+                console.log('scaleCoeffX: ' + scaleCoeffX);
+                console.log('scaleCoeffY: ' + scaleCoeffY);
+                console.log('width: ' + width);
+                console.log('margin: ' + margin);
+            }
             var b = false;
             var notInRangeCounter = 0;
             for(var i = 0; i < points.length; i++){
                 points[i].x = points[i].x / scaleCoeffX * zoom;
-                points[i].x += margin;
-                points[i].y = points[i].y / scaleCoeffY;
-                points[i].y += height/2;
+                points[i].x += margin + coeffX;
+                points[i].y = points[i].y / scaleCoeffY * zoom;
+                points[i].y += height/2 + coeffY;
                 if (points[i].x > width - margin) {
-                    if (!b) {
+                    if (!b && consol) {
                         console.warn('i: ' + i + '(x: ' + points[i].x + ' > ' + (width - margin));
                     }
                     b = true;
-                    points[i].x = points[i-1].x ;
-                    points[i].y = height/2;
+                    points[i].x = points[i-1].x + coeffX;
+                    points[i].y = height/2 + coeffY;
                     notInRangeCounter ++;
                 }
+                if (points[i].y > height - margin) points[i].y = height - margin;
+                if (points[i].y < margin) points[i].y = margin;
             }
-            console.warn('There are ' + notInRangeCounter + ' values over the limit');
+            if (consol) console.warn('There are ' + notInRangeCounter + ' values over the limit');
         }
 
         function fillArray(){
-            console.groupCollapsed('values:');
+            if (consol) console.groupCollapsed('values:');
             for (var i = 0; i < count; i++){
                 points[points.length] = {y: 0, x: 0, val: 0};
                 points[points.length-1].y = Math.sin(i*step);
                 points[points.length-1].x = i;
                 points[points.length-1].val = i*step;
-                console.log(i * step);
             }
-            console.groupEnd();
+            if (consol) console.groupEnd();
             points[points.length] = {x: count, y: 0, val: count * step};
+        }
+
+        function changeCoeffs(){
+            if (keys.w) coeffY --;
+            if (keys.a) coeffX --;
+            if (keys.s) coeffY ++;
+            if (keys.d) coeffX ++;
         }
     }
 </script>
@@ -184,10 +201,13 @@
         var height = window.innerHeight - 100;
         var zoom = parseFloat(document.getElementById('zoom').value);
         var quality = parseFloat(document.getElementById('quality').value);
-        var margin = 30;
+        var margin = 40;
         var count = 30 * quality;
         var step = 1 / quality;
+        var consol = false;
         var svg = d3.select('body').append('svg').attr('width', width).attr('height', height).attr('class', 'axis').attr('id', 'svg');
+
+        var keys = {w:false, a:false, s:false, d:false}; //keys state
 
         document.getElementById('zoomlevel').innerText = zoom;
         document.getElementById('qualitylevel').innerText = quality;
@@ -208,11 +228,78 @@
         console.log('quality level: ' + quality);
         console.groupEnd();
 
-        calc(svg, width, height, margin, count, step, zoom);
+        calc(svg, width, height, margin, count, step, zoom, keys, consol);
 
         window.onresize = function () {
-            console.clear();
-            main();
+            repaint();
+        };
+
+        function repaint(keys){
+            svg.select('polygon').remove();
+            svg.selectAll('g').remove();
+            calc(svg, width, height, margin, count, step, zoom, keys, consol);
+            if (consol) console.info('repaint!');
+        }
+
+        function key(event){
+            var code = event.keyCode;
+            if (consol) console.log('key pressed: ' + code);
+            if (event.type == 'keydown'){
+                if (code == 87) keys.w = true;
+                if (code == 65) keys.a = true;
+                if (code == 68) keys.d = true;
+                if (code == 83) keys.s = true;
+            }
+            else if (event.type == 'keyup'){
+                if (code == 87) keys.w = false;
+                if (code == 65) keys.a = false;
+                if (code == 68) keys.d = false;
+                if (code == 83) keys.s = false;
+            }
+            repaint(keys);
+            //main();
+        }
+
+
+
+
+        // Функция для добавления обработчика событий
+        function addHandler(object, event, handler, useCapture) {
+            if (object.addEventListener) {
+                object.addEventListener(event, handler, useCapture ? useCapture : false);
+            } else if (object.attachEvent) {
+                object.attachEvent('on' + event, handler);
+            } else alert("Add handler is not supported");
+        }
+        // Добавляем обработчики
+        /* Gecko */
+        addHandler(window, 'DOMMouseScroll', wheel);
+        /* Opera */
+        addHandler(window, 'mousewheel', wheel);
+        /* IE */
+        //addHandler(document, 'mousewheel', wheel);
+
+        addHandler(window, 'keydown', key);
+        addHandler(window, 'keyup', key);
+        // Обработчик события
+        function wheel(event) {
+            var delta; // Направление скролла
+            // -1 - скролл вниз
+            // 1  - скролл вверх
+            event = event || window.event;
+            // Opera и IE работают со свойством wheelDelta
+            if (event.wheelDelta) {
+                delta = event.wheelDelta / 120;
+                // В Опере значение wheelDelta такое же, но с противоположным знаком
+                if (window.opera) delta = -delta;
+                // В реализации Gecko получим свойство detail
+            } else if (event.detail) {
+                delta = -event.detail / 3;
+            }
+            // Запрещаем обработку события браузером по умолчанию
+            if (event.preventDefault)  event.preventDefault();
+            event.returnValue = false;
+            return delta;
         }
     }
 </script>
