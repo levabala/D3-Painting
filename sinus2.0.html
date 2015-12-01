@@ -33,21 +33,22 @@
     <script src="http://d3js.org/d3.v3.min.js"></script>
 </head>
 <body>
-<input type = "range" id = "zoom" min = "1" max = "10" step = "1" value = "1" onchange="main()"> Уровень зума: <t id = "zoomlevel"></t>&nbsp&nbsp&nbsp&nbsp
+<input type = "range" id = "zoom" min = "1" max = "5" step = "1" value = "1" onchange="main()"> Уровень зума: <t id = "zoomlevel"></t>&nbsp&nbsp&nbsp&nbsp
 <input type = "range" id = "quality" min = "1" max = "20" step = "1" value = "10" onchange="main()"> Качество синусов: <t id = "qualitylevel"></t><br><br>
 <script type="text/javascript">
     //Painting
-    function paint(svg, width, height, points, margin){
+    function paint(svg, width, height, points, margin, zoom){
         console.group('---- Painting started ----');
 
-        drawAxis(svg,width,height,margin,points[points.length-1].x);
+        drawAxis(svg,width,height,margin,points[points.length-1].val,zoom);
         drawPoly(points,svg);
 
         console.info("Painting finished...");
         console.groupEnd();
     }
 
-    function drawAxis(svg, width, height, margin, maxX){
+    function drawAxis(svg, width, height, margin, maxX, zoom){
+        console.warn('maxX: ' + maxX);
         // длина оси X= ширина контейнера svg - отступ слева и справа
         var xAxisLength = width - 2 * margin;
 
@@ -56,16 +57,17 @@
 
         // функция интерполяции значений на ось Х 
         var scaleX = d3.scale.linear()
-                .domain([0, maxX])
+                .domain([0, maxX / zoom])
                 .range([0, xAxisLength]);
         var scaleY = d3.scale.linear()
-                .domain([-1, 1])
+                .domain([-1 * zoom, 1 * zoom])
                 .range([0, yAxisLength]);
 
         // создаем ось X  
         var xAxis = d3.svg.axis()
                 .scale(scaleX)
-                .orient("bottom");
+                .orient("bottom")
+                .ticks(31.4);
         var yAxis = d3.svg.axis()
                 .scale(scaleY)
                 .orient("left");
@@ -116,7 +118,7 @@
 </script>
 <script type="text/javascript">
     //Calculation
-    function calc(svg, width, height, margin, count, step){
+    function calc(svg, width, height, margin, count, step, zoom){
         console.group('---- Calculation started ----');
 
         var points = [];
@@ -128,28 +130,46 @@
         console.info("Calculation finished...");
         console.groupEnd();
 
-        paint(svg, width, height, points, margin);
+        paint(svg, width, height, points, margin, zoom);
 
         function scalePoints(){
             var scaleCoeffX = count / (width - margin * 2);
             var scaleCoeffY = 1 / (height - margin * 2) * 2;
             console.log('scaleCoeffX: ' + scaleCoeffX);
             console.log('scaleCoeffY: ' + scaleCoeffY);
+            console.log('width: ' + width);
+            console.log('margin: ' + margin);
+            var b = false;
+            var notInRangeCounter = 0;
             for(var i = 0; i < points.length; i++){
-                points[i].x = points[i].x / scaleCoeffX;
+                points[i].x = points[i].x / scaleCoeffX * zoom;
                 points[i].x += margin;
                 points[i].y = points[i].y / scaleCoeffY;
                 points[i].y += height/2;
+                if (points[i].x > width - margin) {
+                    if (!b) {
+                        console.warn('i: ' + i + '(x: ' + points[i].x + ' > ' + (width - margin));
+                    }
+                    b = true;
+                    points[i].x = points[i-1].x ;
+                    points[i].y = height/2;
+                    notInRangeCounter ++;
+                }
             }
+            console.warn('There are ' + notInRangeCounter + ' values over the limit');
         }
 
         function fillArray(){
+            console.groupCollapsed('values:');
             for (var i = 0; i < count; i++){
-                points[points.length] = {y: 0, x: 0};
+                points[points.length] = {y: 0, x: 0, val: 0};
                 points[points.length-1].y = Math.sin(i*step);
                 points[points.length-1].x = i;
+                points[points.length-1].val = i*step;
+                console.log(i * step);
             }
-            points[points.length] = {x: count, y: 0};
+            console.groupEnd();
+            points[points.length] = {x: count, y: 0, val: count * step};
         }
     }
 </script>
@@ -162,7 +182,7 @@
         d3.select('body').select('svg').remove(); //delete old svg if it exists
         var width = window.innerWidth - 30;
         var height = window.innerHeight - 100;
-        var zoom = parseInt(document.getElementById('zoom').value);
+        var zoom = parseFloat(document.getElementById('zoom').value);
         var quality = parseFloat(document.getElementById('quality').value);
         var margin = 30;
         var count = 30 * quality;
@@ -188,7 +208,7 @@
         console.log('quality level: ' + quality);
         console.groupEnd();
 
-        calc(svg, width, height, margin, count, step);
+        calc(svg, width, height, margin, count, step, zoom);
 
         window.onresize = function () {
             console.clear();
