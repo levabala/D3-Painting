@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Sinus 2.0</title>
+    <style type="text/css">
+        svg {
+            border: solid #000000 1px;
+            background-color: #f0f8ff;
+        }
+        svg line{
+            stroke: grey;
+            stroke-width: 2;
+        }
+        svg circle{
+            stroke: steelblue;
+            fill: #21B2B4;
+            stroke-width: 2;
+        }
+        .axis path, .axis line {
+            fill: none;
+            stroke: #333;
+        }
+        .axis .grid-line {
+            stroke: #000;
+            shape-rendering: crispedges;
+            stroke-opacity: 0.2;
+        }
+        .axis text {
+            font: 10px Verdana;
+        }
+    </style>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+</head>
+<body>
+<input type = "range" id = "zoom" min = "1" max = "10" step = "1" value = "1" onchange="main()"> Уровень зума: <t id = "zoomlevel"></t>&nbsp&nbsp&nbsp&nbsp
+<input type = "range" id = "quality" min = "1" max = "20" step = "1" value = "10" onchange="main()"> Качество синусов: <t id = "qualitylevel"></t><br><br>
+<script type="text/javascript">
+    //Painting
+    function paint(svg, width, height, points, margin){
+        console.group('---- Painting started ----');
+
+        drawAxis(svg,width,height,margin,points[points.length-1].x);
+        drawPoly(points,svg);
+
+        console.info("Painting finished...");
+        console.groupEnd();
+    }
+
+    function drawAxis(svg, width, height, margin, maxX){
+        // длина оси X= ширина контейнера svg - отступ слева и справа
+        var xAxisLength = width - 2 * margin;
+
+        // длина оси Y = высота контейнера svg - отступ сверху и снизу
+        var yAxisLength = height- 2 * margin;
+
+        // функция интерполяции значений на ось Х 
+        var scaleX = d3.scale.linear()
+                .domain([0, maxX])
+                .range([0, xAxisLength]);
+        var scaleY = d3.scale.linear()
+                .domain([-1, 1])
+                .range([0, yAxisLength]);
+
+        // создаем ось X  
+        var xAxis = d3.svg.axis()
+                .scale(scaleX)
+                .orient("bottom");
+        var yAxis = d3.svg.axis()
+                .scale(scaleY)
+                .orient("left");
+
+        // отрисовка оси              
+        svg.append("g")
+                .attr("class", "x-axis")
+                .attr("transform",  // сдвиг оси вниз и вправо
+                "translate(" + margin + "," + (height - margin) + ")")
+                .call(xAxis);
+
+        svg.append("g")
+                .attr("class", "y-axis")
+                .attr("transform", // сдвиг оси вниз и вправо на margin
+                "translate(" + margin + "," + margin + ")")
+                .call(yAxis);
+
+        // создаем набор вертикальных линий для сетки  
+        d3.selectAll("g.x-axis g.tick")
+                .append("line") // добавляем линию
+                .classed("grid-line", true) // добавляем класс
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", 0)
+                .attr("y2", - (yAxisLength));
+
+        // рисуем горизонтальные линии
+        d3.selectAll("g.y-axis g.tick")
+                .append("line")
+                .classed("grid-line", true)
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", xAxisLength)
+                .attr("y2", 0);
+    }
+    function drawPoly(points, svg){
+        var pointsString = "";
+        for (var i = 0; i < points.length; i++){
+            pointsString += points[i].x + "," + points[i].y + " ";
+        }
+
+        svg.append("polygon")
+                .style("fill", "blue")
+                .style("stroke", "steelblue")
+                .style("stroke-width", "2")
+                .attr("points", pointsString);
+    }
+</script>
+<script type="text/javascript">
+    //Calculation
+    function calc(svg, width, height, margin, count, step){
+        console.group('---- Calculation started ----');
+
+        var points = [];
+        fillArray();
+        scalePoints();
+
+        console.log('step: ' + step);
+        console.log('count: ' + count);
+        console.info("Calculation finished...");
+        console.groupEnd();
+
+        paint(svg, width, height, points, margin);
+
+        function scalePoints(){
+            var scaleCoeffX = count / (width - margin * 2);
+            var scaleCoeffY = 1 / (height - margin * 2) * 2;
+            console.log('scaleCoeffX: ' + scaleCoeffX);
+            console.log('scaleCoeffY: ' + scaleCoeffY);
+            for(var i = 0; i < points.length; i++){
+                points[i].x = points[i].x / scaleCoeffX;
+                points[i].x += margin;
+                points[i].y = points[i].y / scaleCoeffY;
+                points[i].y += height/2;
+            }
+        }
+
+        function fillArray(){
+            for (var i = 0; i < count; i++){
+                points[points.length] = {y: 0, x: 0};
+                points[points.length-1].y = Math.sin(i*step);
+                points[points.length-1].x = i;
+            }
+            points[points.length] = {x: count, y: 0};
+        }
+    }
+</script>
+<script type="text/javascript">
+    //Main code
+    main();
+
+    function main() {
+        console.clear();
+        d3.select('body').select('svg').remove(); //delete old svg if it exists
+        var width = window.innerWidth - 30;
+        var height = window.innerHeight - 100;
+        var zoom = parseInt(document.getElementById('zoom').value);
+        var quality = parseFloat(document.getElementById('quality').value);
+        var margin = 30;
+        var count = 30 * quality;
+        var step = 1 / quality;
+        var svg = d3.select('body').append('svg').attr('width', width).attr('height', height).attr('class', 'axis').attr('id', 'svg');
+
+        document.getElementById('zoomlevel').innerText = zoom;
+        document.getElementById('qualitylevel').innerText = quality;
+
+        console.info("Main code loaded at (" + new Date() + ")");
+
+        console.group('More information');
+        console.groupCollapsed('window: ' + window);
+        console.log('width: ', window.innerWidth);
+        console.log('height: ', window.innerHeight);
+        console.groupEnd();
+        console.groupCollapsed('svg: ' + svg);
+        console.log('width: ', width);
+        console.log('height: ', height);
+        console.groupEnd();
+        console.group('Other parameters');
+        console.log('zoom level: ' + zoom);
+        console.log('quality level: ' + quality);
+        console.groupEnd();
+
+        calc(svg, width, height, margin, count, step);
+
+        window.onresize = function () {
+            console.clear();
+            main();
+        }
+    }
+</script>
+</body>
+</html>
